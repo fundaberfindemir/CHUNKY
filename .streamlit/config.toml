@@ -1,0 +1,32 @@
+[browser]
+# Streamlit'e kullanım istatistiği gönderme
+gatherUsageStats = false
+
+[server]
+headless = true
+# static/ klasörünü (yerel yazı tipleri) /app/static/ adresinden sun
+enableStaticServing = true
+
+[client]
+# Üst menüdeki "Deploy" gibi geliştirici düğmelerini gizle
+toolbarMode = "minimal"
+showErrorDetails = false
+
+# Streamlit bileşenlerinin temel teması. Asıl renkler assets/style.css
+# içindeki CSS değişkenlerindedir; açık/koyu geçişi oradan yapılır.
+[theme]
+base = "dark"
+primaryColor = "#C9A961"
+backgroundColor = "#0A0A0C"
+secondaryBackgroundColor = "#18181C"
+textColor = "#EDE8DE"
+borderColor = "#27251F"
+baseRadius = "12px"
+showWidgetBorder = true
+font = "'Chunky Sans', 'Segoe UI', system-ui, sans-serif"
+headingFont = "'Chunky Serif', Georgia, serif"
+codeFont = "'Chunky Mono', Consolas, monospace"
+
+[theme.sidebar]
+backgroundColor = "#121215"
+secondaryBackgroundColor = "#18181C"

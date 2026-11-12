@@ -1,0 +1,32 @@
+# --- Gizli bilgiler (ASLA commit etme) ---
+.env
+.env.*
+!.env.example
+
+# --- Sanal ortam ---
+.venv/
+venv/
+env/
+
+# --- Python önbellek ---
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+
+# --- Vektör veritabanı ---
+db/
+
+# --- Klonlanan test repoları ---
+repos/
+
+# --- Makineye özel kök sertifikalar (antivirüs/kurumsal ağ) ---
+certs/*.crt
+certs/*.pem
+
+# --- Editör / sistem ---
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+*.log

@@ -1,0 +1,44 @@
+# Kod Tabanıyla Sohbet - ayarlar
+# API anahtarları burada DEĞİL, .env dosyasında tutulur.
+
+llm:
+  # Seçenekler: claude | gemini | ollama
+  provider: gemini
+  models:
+    claude: claude-sonnet-5-5
+    gemini: gemini-3.8-flash
+    ollama: qwen2.5-coder:7b
+  # Asıl model yoğunsa (503) veya zaman aşımına uğrarsa SIRAYLA denenecek yedek modeller.
+  # Google'daki yoğunluk saatten saate değişir; en sona hızlı bir "lite" model koymak iyi olur.
+  fallback_models:
+    gemini: [gemini-3.6-flash, gemini-3.1-flash-lite]
+  temperature: 0.2
+  # Gemini 3.x "düşünen" modeldir; düşünme token'ları da bu sınırdan harcanır
+  max_tokens: 4096
+
+paths:
+  repos_dir: repos   # klonlanan repolar
+  db_dir: db         # ChromaDB kalıcı veritabanı
+
+indexing:
+  # Bu klasörler taranmaz
+  ignore_dirs:
+    - .git
+    - node_modules
+    - venv
+    - .venv
+    - env
+    - __pycache__
+    - build
+    - dist
+    - .tox
+    - .mypy_cache
+    - .pytest_cache
+    - site-packages
+    - .eggs
+  extensions: [".py"]
+  max_file_kb: 500        # çok büyük dosyaları atla
+  max_chunk_lines: 200    # çok uzun parçalar bölünür
+
+search:
+  top_k: 5

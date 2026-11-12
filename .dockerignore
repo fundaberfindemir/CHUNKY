@@ -1,0 +1,23 @@
+# --- Gizli bilgiler: imaja ASLA girmez (anahtarlar çalışırken compose ile verilir) ---
+.env
+.env.*
+!.env.example
+
+# --- Yerel veriler: konteyner kendi volume'larını kullanır ---
+.venv/
+venv/
+db/
+repos/
+
+# --- Gereksizler ---
+.git/
+.gitignore
+.vscode/
+.idea/
+__pycache__/
+**/__pycache__/
+*.py[cod]
+*.log
+Dockerfile
+compose.yaml
+.dockerignore

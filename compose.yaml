@@ -1,0 +1,28 @@
+# Çalıştırma:  docker compose up -d --build
+# Adres:       http://localhost:8501
+services:
+  chunky:
+    build: .
+    image: chunky:latest
+    container_name: chunky
+    ports:
+      # Sadece bu bilgisayardan erişilebilir (yerel ağa açılmaz)
+      - "127.0.0.1:8501:8501"
+    # API anahtarları çalışırken .env'den okunur; imaja yazılmaz
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      # Konteynerin içinden bilgisayardaki Ollama'ya ulaşmak için
+      OLLAMA_HOST: http://host.docker.internal:11434
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      # İndeksler ve klonlanan repolar konteyner silinse de kalır
+      - chunky-db:/app/db
+      - chunky-repos:/app/repos
+    restart: unless-stopped
+
+volumes:
+  chunky-db:
+  chunky-repos:
