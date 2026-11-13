@@ -17,6 +17,9 @@ __pycache__/
 # --- Vektör veritabanı ---
 db/
 
+# --- İndirilen embedding modelleri ---
+.models/
+
 # --- Klonlanan test repoları ---
 repos/
 

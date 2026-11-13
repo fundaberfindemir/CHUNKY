@@ -31,11 +31,13 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install -r requirements.txt
 
-RUN mkdir -p /app/db /app/repos && chown -R app:app /app
+RUN mkdir -p /app/repos && chown -R app:app /app
 USER app
 
-# Embedding modelini (~80 MB) derleme sırasında indir; ilk sorguda beklenmesin
-RUN python -c "from chromadb.utils.embedding_functions import DefaultEmbeddingFunction as E; E()(['hazir'])"
+# Embedding modellerini (~240 MB, çok dilli + BM25) derleme sırasında indir; ilk indekslemede beklenmesin
+ENV FASTEMBED_CACHE_PATH=/home/app/.cache/fastembed
+COPY --chown=app:app config.yaml .
+RUN python -c "import yaml; from fastembed import TextEmbedding as D, SparseTextEmbedding as S; c = yaml.safe_load(open('config.yaml', encoding='utf-8'))['vector_db']; list(D(c['dense_model']).embed(['hazir'])); list(S(c['sparse_model']).embed(['hazir']))"
 
 COPY --chown=app:app . .
 

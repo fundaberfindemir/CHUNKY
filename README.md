@@ -2,7 +2,7 @@
 
 Bir GitHub reposunu klonlayıp kodu **fonksiyon ve sınıf bazında** parçalayan, bu parçaları vektör veritabanına indeksleyen ve sorularınızı **dosya yolu ve satır numarası** göstererek cevaplayan bir RAG (Retrieval-Augmented Generation) eğitim projesi.
 
-> **Sürüm 1.0** · Yalnızca **Python** repolarını destekler · Vektör veritabanı: ChromaDB
+> **Sürüm 2.0** · Yalnızca **Python** repolarını destekler · Vektör veritabanı: Qdrant · Karma arama (anlam + kelime) · Türkçe ve İngilizce sorular
 
 ![Chunky ana ekran (koyu tema)](docs/screenshots/ana-ekran-koyu.png)
 
@@ -20,15 +20,23 @@ Bir GitHub reposunu klonlayıp kodu **fonksiyon ve sınıf bazında** parçalaya
 ```
 GitHub URL ──► Klonla ──► .py dosyalarını filtrele ──► tree-sitter ile AST chunking
                                                                │
-Soru ──► Benzerlik araması (ChromaDB) ◄── Embedding + indeks ◄─┘
+                                    Çok dilli embedding + BM25 ◄─┘
+                                                  │
+                                                  ▼
+Soru ──► Karma arama (Qdrant: anlam + kelime, RRF ile birleştirme)
             │
             └──► En ilgili kod parçaları + soru ──► LLM ──► Kaynaklı cevap
 ```
 
 1. **Klonlama:** Repo `repos/` klasörüne yüzeysel (`depth=1`) klonlanır. `.git`, `node_modules`, `venv`, `__pycache__`, `build`, `dist` gibi klasörler atlanır.
 2. **AST chunking:** [tree-sitter](https://tree-sitter.github.io/) her dosyayı sözdizimi ağacına çevirir. Her fonksiyon, her metot ve her sınıf başlığı ayrı bir parça olur. İmport ve sabitler gibi geri kalan kod da "modül" parçası olarak saklanır. Her parça için kod metni, dosya yolu, başlangıç/bitiş satırı, ad ve tür tutulur.
-3. **İndeksleme:** Parçalar ChromaDB'ye yazılır. Embedding'ler ChromaDB'nin yerleşik yerel modeli (`all-MiniLM-L6-v2`) ile üretilir; bu adım için API anahtarı gerekmez.
-4. **Cevaplama:** Soruya en benzer parçalar bulunur ve seçilen LLM'e bağlam olarak verilir. LLM'den her bilgi için `dosya.py:satır-satır` kaynağı vermesi istenir.
+3. **İndeksleme:** Her parça [Qdrant](https://qdrant.tech/)'a **iki vektörle** yazılır:
+   - **anlam**: çok dilli embedding modeli (`paraphrase-multilingual-MiniLM-L12-v2`). Türkçe bir soru İngilizce yazılmış kodla eşleşebilir.
+   - **kelime**: BM25 seyrek vektörü. `URLSafeSerializer` gibi tam adları kaçırmaz.
+
+   Her parçaya ayrıca `is_test` ve `kind` bilgisi eklenir; böylece "test dosyalarını hariç tut" gibi filtreler veritabanında uygulanır. Modeller [FastEmbed](https://github.com/qdrant/fastembed) ile **yerelde** çalışır; bu adım için API anahtarı gerekmez ve kodunuz dışarı gönderilmez.
+4. **Karma arama:** Soru iki yöntemle de aranır, sonuçlar Qdrant'ın **RRF** (Reciprocal Rank Fusion) yöntemiyle tek listede birleştirilir. Her kaynak kartında parçanın hangi yöntemle bulunduğu (**anlam + kelime**, **anlam** ya da **kelime**) rozet olarak gösterilir.
+5. **Cevaplama:** En ilgili parçalar seçilen LLM'e bağlam olarak verilir. LLM'den her bilgi için `dosya.py:satır-satır` kaynağı vermesi istenir.
 
 ## Teknolojiler
 
@@ -36,8 +44,8 @@ Soru ──► Benzerlik araması (ChromaDB) ◄── Embedding + indeks ◄─
 |---|---|
 | Dil | Python 3.12+ (3.14 ile test edildi) |
 | Kod ayrıştırma | tree-sitter, tree-sitter-python |
-| Vektör veritabanı | ChromaDB (yerel, kalıcı) |
-| Embedding | all-MiniLM-L6-v2 (ONNX, yerel) |
+| Vektör veritabanı | Qdrant 1.20 (Docker), qdrant-client |
+| Embedding | FastEmbed: paraphrase-multilingual-MiniLM-L12-v2 (çok dilli) + BM25 (yerel, ONNX) |
 | LLM | Claude (Anthropic), Gemini (Google) veya Ollama (yerel) |
 | Arayüz | Streamlit, Pygments (kod renklendirme) |
 | Yazı tipleri | Cormorant Garamond, Inter, JetBrains Mono (projeye gömülü, OFL lisanslı) |
@@ -57,12 +65,13 @@ chunky/
 ├── Dockerfile          # Docker imajı
 ├── compose.yaml        # docker compose ayarları (port, volume, .env)
 ├── certs/              # İsteğe bağlı ek kök sertifikalar (makineye özel, git'e girmez)
+├── eval/               # Arama kalitesi ölçümü (soru seti + ölçüm betiği)
 ├── requirements.txt
 └── src/
     ├── config.py       # config.yaml ve .env okuma
     ├── repo_loader.py  # Klonlama ve dosya filtreleme
     ├── chunker.py      # tree-sitter ile AST chunking
-    ├── indexer.py      # ChromaDB indeksleme ve arama
+    ├── indexer.py      # Qdrant indeksleme ve karma arama
     ├── llm.py          # claude | gemini | ollama katmanı
     ├── rag.py          # Bağlam oluşturma ve cevaplama
     └── ui.py           # Arayüz HTML parçaları ve simgeler
@@ -116,6 +125,29 @@ llm:
 
 Ollama için önce [Ollama'yı kurun](https://ollama.com) ve modeli indirin: `ollama pull qwen2.5-coder:7b`.
 
+### Vektör veritabanı (Qdrant)
+
+Qdrant Docker ile çalışır. Uygulamayı Docker olmadan çalıştıracaksanız önce yalnızca Qdrant'ı başlatın:
+
+```bash
+docker compose up -d qdrant
+```
+
+Arama ayarları `config.yaml` içindedir:
+
+```yaml
+vector_db:
+  url: http://localhost:6333
+  dashboard: http://localhost:6333/dashboard
+  dense_model: sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2
+  sparse_model: Qdrant/bm25
+search:
+  top_k: 5
+  exclude_tests: false   # true: test dosyaları varsayılan olarak aramaya katılmaz
+```
+
+Embedding modelleri (~240 MB) ilk indekslemede bir kez indirilir ve `.models/` klasöründe saklanır (git'e girmez).
+
 ## Çalıştırma
 
 ### Arayüz (Streamlit)
@@ -133,7 +165,9 @@ Tarayıcıda `http://localhost:8501` açılır. Sol menüdeki **Yeni repo indeks
 - **İstatistik kartları:** Açılışta reponun dosya, fonksiyon, sınıf ve metot sayıları sayarak belirir.
 - **Akan cevap:** Cevap, model yazdıkça parça parça ekrana gelir.
 - **Kaynak rozetleri:** Cevaptaki `dosya.py:10–20` atıfları küçük rozetlere dönüşür; tıklayınca ilgili kaynak kartı açılır.
-- **Kaynak kartları:** Varsayılan kapalıdır. Başlıkta fonksiyon adı, dosya yolu, satır aralığı ve benzerlik çubuğu; açılınca gerçek satır numaralı, renklendirilmiş kod ve **Kopyala** düğmesi.
+- **Kaynak kartları:** Varsayılan kapalıdır. Başlıkta fonksiyon adı, dosya yolu, satır aralığı, **eşleşme türü rozeti** (anlam + kelime / anlam / kelime) ve anlam benzerliği çubuğu; açılınca gerçek satır numaralı, renklendirilmiş kod ve **Kopyala** düğmesi.
+- **Testleri hariç tut:** Sol menüdeki anahtar açıkken test dosyalarındaki kodlar aramaya katılmaz.
+- **Qdrant paneli:** Sol menüdeki düğme Qdrant'ın kendi panelini (`http://localhost:6333/dashboard`) açar; koleksiyonları, parçaları ve vektörleri buradan inceleyebilirsiniz.
 - **İndeksleme ilerlemesi:** "Repo indiriliyor → Dosyalar okunuyor → Parçalanıyor → İndeksleniyor" adımları ve yüzde göstergesi.
 - **Mobil uyumlu:** Dar ekranda kartlar tek sütuna iner, kenar çubuğu üstteki düğmeyle açılır.
 
@@ -151,7 +185,9 @@ Ardından `http://localhost:8501` adresini açın.
 
 - **Anahtarlar imaja girmez.** `.dockerignore` `.env` dosyasını dışarıda bırakır; `compose.yaml` anahtarları yalnızca konteyner çalışırken `.env`'den verir.
 - **Sadece bu bilgisayardan erişilir.** Port `127.0.0.1`'e bağlıdır, yerel ağa açılmaz.
-- **Veriler kalıcıdır.** İndeksler ve klonlanan repolar `chunky-db` ve `chunky-repos` volume'larında tutulur; konteyner silinse de kaybolmaz. Konteyner kendi veritabanıyla başlar, bu yüzden repoları bir kez arayüzden indekslemeniz gerekir.
+- **İki servis:** `chunky` (arayüz) ve `qdrant` (vektör veritabanı). Qdrant paneli `http://localhost:6333/dashboard` adresindedir.
+- **Veriler kalıcıdır.** İndeksler `qdrant-data`, klonlanan repolar `chunky-repos` volume'unda tutulur; konteyner silinse de kaybolmaz.
+- **Modeller imajdadır.** Embedding modelleri derleme sırasında indirilir; ilk indekslemede beklemezsiniz.
 - **Ollama:** Bilgisayarınızda çalışan Ollama'ya konteynerden `host.docker.internal` üzerinden ulaşılır.
 - Uygulama konteynerde root olmayan `app` kullanıcısıyla çalışır.
 
@@ -175,23 +211,33 @@ python cli.py index https://github.com/pallets/itsdangerous
 # İndekslenmiş repoları listele
 python cli.py list
 
-# Sadece benzerlik araması (LLM kullanmaz)
+# Sadece karma arama (LLM kullanmaz); --no-tests test dosyalarını dışarıda bırakır
 python cli.py search pallets__itsdangerous "base64 helpers" -k 5 --show-code
+python cli.py search pallets__itsdangerous "imza nasıl doğrulanıyor?" --no-tests
 
 # LLM ile kaynaklı cevap
 python cli.py ask pallets__itsdangerous "max_age süresi nasıl kontrol ediliyor?"
 python cli.py ask pallets__itsdangerous "How are keys rotated?" --provider ollama
 ```
 
-Örnek arama çıktısı:
+Çıktıda her sonucun anlam benzerliği (yalnızca kelimeyle bulunduysa `-`) ve eşleşme türü yazar.
 
-```
-Soru: "base64 encoding and decoding helpers"
+## Arama kalitesini ölçme
 
-1. [0.610] src/itsdangerous/encoding.py:28-38  (function) base64_decode
-2. [0.597] src/itsdangerous/encoding.py:20-25  (function) base64_encode
-3. [0.592] src/itsdangerous/encoding.py:41-46  (module) <modül>
+`eval/sorular.yaml` dosyasında `pallets/itsdangerous` için cevabı bilinen 12 soru (6 Türkçe, 6 İngilizce) vardır. Ölçüm betiği her soru için doğru kod parçasının kaçıncı sırada geldiğine bakar:
+
+```bash
+python cli.py index https://github.com/pallets/itsdangerous
+python -m eval.olcum
 ```
+
+| | v1.0 (ChromaDB, İngilizce model) | v2.0 (Qdrant, çok dilli + karma) |
+|---|---|---|
+| Türkçe sorular · ilk 5'te | %0 | **%100** |
+| İngilizce sorular · ilk 5'te | %100 | %100 |
+| Tüm sorular · MRR | 0.36 | **0.59** |
+
+*İlk 5'te: doğru parça LLM'e gönderilen 5 parçanın içinde mi? MRR: doğru parçanın sırasının tersi ortalaması (1. sıra = 1, 2. sıra = 0.5 …).*
 
 ## Örnek sorular
 
@@ -207,11 +253,12 @@ Soru: "base64 encoding and decoding helpers"
 ## Bilinen sınırlamalar
 
 - Yalnızca Python dosyaları indekslenir.
-- Yerel embedding modeli İngilizce ağırlıklıdır, bu yüzden **İngilizce sorularda arama daha isabetlidir**. Türkçe sorabilirsiniz ama arama kalitesi düşebilir; çok dilli bir embedding modeli ileride eklenebilir.
 - Embedding modeli uzun parçaların yalnızca başını dikkate alır. Bu yüzden parçaların başına dosya yolu ve ad eklenir.
+- Sohbet hafızası yoktur; her soru bağımsız cevaplanır.
 
 ## Sorun giderme
 
+- **Qdrant'a bağlanılamıyor:** `docker compose up -d qdrant` ile veritabanını başlatın. Adres `config.yaml` içindeki `vector_db.url` (Docker'da `QDRANT_URL`) değeridir.
 - **`CERTIFICATE_VERIFY_FAILED` hatası:** Antivirüs veya kurumsal ağ HTTPS trafiğini denetliyor olabilir. Proje `truststore` ile işletim sisteminin sertifika deposunu kullanır; `pip install -r requirements.txt` ile kurulu olduğundan emin olun.
 - **"Gemini anahtarı kabul edilmedi":** Anahtarı [aistudio.google.com/apikey](https://aistudio.google.com/apikey) adresindeki **Copy** düğmesiyle eksiksiz kopyalayın. Docker kullanıyorsanız ardından `docker compose up -d --force-recreate` çalıştırın.
 - **"Gemini şu an çok yoğun" / "yedek model ile hazırlandı":** Google tarafında geçici yoğunluk (HTTP 503). Uygulama bu durumda `config.yaml` içindeki `fallback_models` listesindeki modelleri sırayla dener.
@@ -223,7 +270,8 @@ Soru: "base64 encoding and decoding helpers"
 ## Sürümler
 
 - **v1.0**: Python desteği, AST chunking (tree-sitter), ChromaDB, Gemini / Claude / Ollama, yedek model zinciri, koyu/açık temalı Streamlit arayüzü, Docker.
-- **Planlanan (v2.0)**: Qdrant'a geçiş, çok dilli embedding (daha iyi Türkçe arama), karma (anlamsal + kelime) arama, sohbet hafızası.
+- **v2.0**: ChromaDB yerine Qdrant, çok dilli embedding (Türkçe sorularda ilk 5 isabeti %0 → %100), karma arama (anlam + BM25, RRF), "Testleri hariç tut" filtresi, eşleşme türü rozetleri, Qdrant paneli bağlantısı, arama kalitesi ölçümü (`eval/`).
+- **Planlanan**: sohbet hafızası, repo silme/güncelleme, diğer programlama dilleri.
 
 ## Lisans
 

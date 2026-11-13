@@ -32,8 +32,8 @@ USER_AVATAR, BOT_AVATAR = ":material/person:", ":material/diamond:"
 
 @st.cache_resource
 def _client():
-    """ChromaDB istemcisi tek sefer oluşturulur."""
-    return get_client(resolve_path(load_config(), "db_dir"))
+    """Qdrant istemcisi tek sefer oluşturulur."""
+    return get_client(load_config())
 
 
 cfg = load_config()
@@ -77,6 +77,8 @@ with st.sidebar:
 
     top_k = st.slider("Bağlam parçası", 1, 15, cfg["search"]["top_k"],
                       help="Cevap için modele gönderilecek en benzer kod parçası sayısı")
+    no_tests = st.toggle("Testleri hariç tut", value=cfg["search"].get("exclude_tests", False),
+                         help="Açıkken test dosyalarındaki kodlar aramaya katılmaz")
 
     st.html(ui.side_title("Repo"))
     repos = list_repos(client)
@@ -102,6 +104,10 @@ with st.sidebar:
                 print(f"[hata] indeksleme: {type(e).__name__}")
                 box.html(ui.notice("err", "Beklenmeyen bir sorun oluştu",
                                    "İndeksleme tamamlanamadı. Lütfen tekrar deneyin."))
+
+    # Qdrant'ın kendi paneli: koleksiyonları ve vektörleri tarayıcıda incelemek için
+    if dash := cfg["vector_db"].get("dashboard"):
+        st.link_button("Qdrant paneli", dash, icon=":material/database:", use_container_width=True)
 
     if repo and ss.get("history", {}).get(repo):
         if st.button("Sohbeti temizle", icon=":material/delete_sweep:", use_container_width=True):
@@ -186,7 +192,7 @@ if question:
             fallback_note.result = None
             try:
                 hits, chunks = answer_stream(question, repo, cfg, client, provider, model, top_k,
-                                             on_fallback=fallback_note)
+                                             on_fallback=fallback_note, exclude_tests=no_tests)
                 out.html(ui.typing("Cevap yazılıyor"))
                 # Akan yazı: her parçada metni güncelle, sonunda imleç yanıp söner
                 with st.container(key="streaming"):

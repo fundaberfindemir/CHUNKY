@@ -516,6 +516,12 @@ details.src summary:hover { background: var(--accent-wash); }
 .src-side { display: flex; align-items: center; gap: var(--s-3); }
 .src-kind { font-size: .58rem; letter-spacing: .14em; text-transform: uppercase; font-weight: 700;
   padding: 3px 7px; border-radius: 6px; border: 1px solid var(--line-gold); color: var(--accent); }
+/* Eşleşme türü rozeti: anlam (vektör), kelime (BM25) ya da ikisi birden */
+.src-match { font-size: .6rem; font-weight: 600; white-space: nowrap; padding: 3px 8px; border-radius: 999px;
+  border: 1px solid var(--line); color: var(--muted); background: transparent; }
+.src-match.both { border-color: var(--line-gold); color: var(--accent); background: var(--accent-wash); }
+.src-match.dense { border-color: var(--line-strong); color: var(--text); }
+.src-match.sparse { border-style: dashed; }
 .src-score { display: flex; align-items: center; gap: var(--s-2); font-family: var(--mono); font-size: .7rem; color: var(--muted); }
 .src-bar { width: 56px; height: 4px; border-radius: 4px; background: var(--line); overflow: hidden; }
 .src-bar i { display: block; height: 100%; border-radius: 4px; background: linear-gradient(90deg, var(--accent), var(--accent-strong)); }

@@ -199,7 +199,16 @@ def code_html(code: str, start_line: int) -> str:
 
 def source_card(msg_id: int, k: int, s: dict) -> str:
     """Varsayılan kapalı, tıklayınca açılan kaynak kartı."""
-    pct = max(0, min(100, int(round(s["score"] * 100))))
+    # Skor yalnızca anlam eşleşmesinde vardır; sadece kelimeyle bulunanlarda "—" gösterilir
+    score = s.get("score")
+    pct = max(0, min(100, int(round(score * 100)))) if score is not None else 0
+    score_txt = f"{score:.2f}" if score is not None else "—"
+    match = s.get("match", "")
+    match_cls = {"anlam + kelime": "both", "anlam": "dense", "kelime": "sparse"}.get(match, "dense")
+    match_tip = {"both": "Hem anlam hem kelime aramasında bulundu",
+                 "dense": "Anlam (vektör) aramasında bulundu",
+                 "sparse": "Kelime (BM25) aramasında bulundu"}[match_cls]
+    match_html = f'<span class="src-match {match_cls}" title="{match_tip}">{escape(match)}</span>' if match else ""
     kind = KIND_TR.get(s["kind"], s["kind"])
     path = s["file_path"]
     folder, _, fname = path.rpartition("/")
@@ -211,7 +220,8 @@ def source_card(msg_id: int, k: int, s: dict) -> str:
   <span class="src-main"><span class="src-name">{escape(s["name"])}</span>
     <span class="src-path">{path_html} · satır {lines}</span></span>
   <span class="src-side"><span class="src-kind">{escape(kind)}</span>
-    <span class="src-score" title="Benzerlik skoru"><span class="src-bar"><i style="width:{pct}%"></i></span>{s["score"]:.2f}</span>
+    {match_html}
+    <span class="src-score" title="Anlam benzerliği"><span class="src-bar"><i style="width:{pct}%"></i></span>{score_txt}</span>
     <span class="src-chev">{icon("chevron")}</span></span>
 </summary>
 <div class="code">

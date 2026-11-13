@@ -1,0 +1,42 @@
+# Arama kalitesi ölçüm seti (repo: pallets/itsdangerous)
+# Her soru için "beklenen" listesindeki parçalardan biri ilk sonuçlarda çıkmalı.
+repo: pallets__itsdangerous
+sorular:
+  # --- Türkçe ---
+  - soru: İmzanın süresi dolunca hangi hata fırlatılıyor?
+    dil: tr
+    beklenen: [SignatureExpired]
+  - soru: Zaman damgası imzaya nasıl ekleniyor?
+    dil: tr
+    beklenen: [TimestampSigner.sign]
+  - soru: Birden fazla gizli anahtar nasıl destekleniyor?
+    dil: tr
+    beklenen: [_make_keys_list, Serializer.iter_unsigners]
+  - soru: İmza nasıl doğrulanıyor?
+    dil: tr
+    beklenen: [Signer.verify_signature, SigningAlgorithm.verify_signature, Signer.unsign]
+  - soru: Veri URL içinde kullanılabilecek hale nasıl getiriliyor ve sıkıştırılıyor?
+    dil: tr
+    beklenen: [URLSafeSerializerMixin.dump_payload, URLSafeSerializerMixin]
+  - soru: Gizli anahtardan imzalama anahtarı nasıl türetiliyor?
+    dil: tr
+    beklenen: [Signer.derive_key]
+  # --- İngilizce ---
+  - soru: Which exception is raised when the signature does not match?
+    dil: en
+    beklenen: [BadSignature]
+  - soru: How is a timestamp converted to a datetime object?
+    dil: en
+    beklenen: [TimestampSigner.timestamp_to_datetime]
+  - soru: Where is the HMAC signature computed?
+    dil: en
+    beklenen: [HMACAlgorithm.get_signature]
+  - soru: How does URLSafeSerializer decompress the payload?
+    dil: en
+    beklenen: [URLSafeSerializerMixin.load_payload]
+  - soru: How are integers converted to bytes?
+    dil: en
+    beklenen: [int_to_bytes]
+  - soru: How does the serializer create its signer?
+    dil: en
+    beklenen: [Serializer.make_signer]

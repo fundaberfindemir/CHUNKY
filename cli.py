@@ -32,11 +32,13 @@ def cmd_index(args, cfg, client):
 
 
 def cmd_search(args, cfg, client):
-    hits = search(client, args.repo, args.query, args.k or cfg["search"]["top_k"])
+    hits = search(client, cfg, args.repo, args.query, args.k or cfg["search"]["top_k"],
+                  exclude_tests=args.no_tests)
     print(f'\nSoru: "{args.query}"\n')
     for i, h in enumerate(hits, 1):
-        print(f"{i}. [{h['score']:.3f}] {h['file_path']}:{h['start_line']}-{h['end_line']}"
-              f"  ({h['kind']}) {h['name']}")
+        score = f"{h['score']:.3f}" if h["score"] is not None else "  -  "
+        print(f"{i}. [{score}] {h['file_path']}:{h['start_line']}-{h['end_line']}"
+              f"  ({h['kind']}) {h['name']}  · {h['match']}")
         if args.show_code:
             preview = "\n".join(h["code"].splitlines()[:8])
             print("   " + preview.replace("\n", "\n   ") + "\n")
@@ -65,6 +67,7 @@ def main():
     ps.add_argument("query")
     ps.add_argument("-k", type=int, help="Kaç sonuç dönsün")
     ps.add_argument("--show-code", action="store_true", help="Kod önizlemesi göster")
+    ps.add_argument("--no-tests", action="store_true", help="Test dosyalarını aramaya katma")
 
     pa = sub.add_parser("ask", help="LLM ile kaynaklı cevap al (RAG)")
     pa.add_argument("repo")
@@ -76,7 +79,7 @@ def main():
 
     args = p.parse_args()
     cfg = load_config()
-    client = get_client(resolve_path(cfg, "db_dir"))
+    client = get_client(cfg)
 
     if args.cmd == "index":
         cmd_index(args, cfg, client)

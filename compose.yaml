@@ -1,5 +1,6 @@
 # Çalıştırma:  docker compose up -d --build
-# Adres:       http://localhost:8501
+# Uygulama:    http://localhost:8501
+# Qdrant paneli: http://localhost:6333/dashboard
 services:
   chunky:
     build: .
@@ -15,14 +16,28 @@ services:
     environment:
       # Konteynerin içinden bilgisayardaki Ollama'ya ulaşmak için
       OLLAMA_HOST: http://host.docker.internal:11434
+      # Vektör veritabanı: aynı ağdaki qdrant konteyneri
+      QDRANT_URL: http://qdrant:6333
     extra_hosts:
       - "host.docker.internal:host-gateway"
     volumes:
-      # İndeksler ve klonlanan repolar konteyner silinse de kalır
-      - chunky-db:/app/db
+      # Klonlanan repolar konteyner silinse de kalır
       - chunky-repos:/app/repos
+    depends_on:
+      - qdrant
+    restart: unless-stopped
+
+  qdrant:
+    image: qdrant/qdrant:v1.20.0
+    container_name: chunky-qdrant
+    ports:
+      # REST API + yönetim paneli; yalnızca bu bilgisayardan
+      - "127.0.0.1:6333:6333"
+    volumes:
+      # İndeksler (vektörler ve kod parçaları) kalıcı olarak burada
+      - qdrant-data:/qdrant/storage
     restart: unless-stopped
 
 volumes:
-  chunky-db:
   chunky-repos:
+  qdrant-data:

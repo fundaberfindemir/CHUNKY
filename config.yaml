@@ -18,7 +18,16 @@ llm:
 
 paths:
   repos_dir: repos   # klonlanan repolar
-  db_dir: db         # ChromaDB kalıcı veritabanı
+
+# Vektör veritabanı: Qdrant (karma arama: anlam + kelime)
+vector_db:
+  url: http://localhost:6333            # Docker'da QDRANT_URL ortam değişkeniyle değişir
+  dashboard: http://localhost:6333/dashboard
+  # Yerel, çok dilli embedding modeli (Türkçe + İngilizce). Kod bilgisayardan çıkmaz.
+  # Değiştirirseniz repoları yeniden indekslemeniz gerekir.
+  dense_model: sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2
+  # Kelime eşleşmesi için seyrek model (tam fonksiyon/sınıf adlarını yakalar)
+  sparse_model: Qdrant/bm25
 
 indexing:
   # Bu klasörler taranmaz
@@ -42,3 +51,4 @@ indexing:
 
 search:
   top_k: 5
+  exclude_tests: false    # true: test dosyaları varsayılan olarak aramaya katılmaz
